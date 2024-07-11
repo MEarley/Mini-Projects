@@ -13,7 +13,8 @@ const int SCREENWIDTH = 800;
 const int SCREENHEIGHT = 800;//450;
 const int xOFFSET = 0; //SCREENWIDTH / 2;
 const int yOFFSET = 0; //SCREENHEIGHT / 2;
-const Color BACKGROUND_COLOR = RAYWHITE;
+const Color BACKGROUND_COLOR = BLACK;
+const Color TEXT_COLOR = RAYWHITE;
 
 class Cell{
     private:
@@ -21,6 +22,7 @@ class Cell{
         int x=0, y=0;
         bool isAlive = false;
         bool willBeAlive = false;
+        bool hasChecked = false;    
         Color color = BLACK;
         
         Cell(){};
@@ -35,7 +37,7 @@ class Cell{
             color = {(unsigned char)(rand() % 256),(unsigned char)(rand() % 256),(unsigned char)(rand() % 256),255};
         } 
 
-        void checkNeighbors(vector<vector<Cell>> &matrix){
+        void checkNeighbors(vector<vector<Cell>> &matrix,set<Cell*> &nextLiveCells){
             int livingCellsCount = 0;
             for(int w=x-1;w<=x+1;w++){
                 for(int h=y-1;h<=y+1;h++){
@@ -44,9 +46,10 @@ class Cell{
                         if (matrix[w][h].isAlive){
                             livingCellsCount++;
                         }
-                        else if(isAlive){ 
+                        else if(isAlive && !matrix[w][h].hasChecked){ 
                             // If the cell is not alive and this cell is, tell the dead cell to check its neighbors
-                            matrix[w][h].checkNeighbors(matrix);
+                            matrix[w][h].hasChecked = true;
+                            matrix[w][h].checkNeighbors(matrix,nextLiveCells);
                         }  
                     }
                 }
@@ -61,7 +64,23 @@ class Cell{
                 // If this cell is dead, it will come to life if there are exactly 3 living cells nearby
                 willBeAlive = livingCellsCount == 3;
             }
+
+            // If this cell will be alive, add it to the set of living cells to be updated
+            //if(willBeAlive)
+            nextLiveCells.insert(this);
+
+            return;
         }   
+
+        bool update(){
+            isAlive = willBeAlive;
+            hasChecked = false;
+            if(isAlive)
+                color = WHITE;
+            else
+                color = BLACK;
+            return isAlive;
+        }
 };
 
 
@@ -94,34 +113,85 @@ int main () {
     InitWindow(SCREENWIDTH, SCREENHEIGHT, "The Game of Life");
 	SetTargetFPS(60);               // Set game to run at 60 frames-per-second
     set<Cell*> livingCells;
-    matrix[10][10].color = GREEN;
+    matrix[10][10].color = WHITE;
+    matrix[10][11].color = WHITE;
+    matrix[10][12].color = WHITE;
+    matrix[10][10].isAlive = true;
+    matrix[10][11].isAlive = true;
+    matrix[10][12].isAlive = true;
     livingCells.insert(&matrix[10][10]);
-    matrix[10][10].checkNeighbors(matrix);
+    livingCells.insert(&matrix[10][11]);
+    livingCells.insert(&matrix[10][12]);
+    //matrix[10][10].checkNeighbors(matrix,livingCells);
 	//--------------------------------------------------------------------------------------
-
+    int clk = 0;
+    bool paused = true;
 	// Main game loop
 	while (!WindowShouldClose())    // Detect window close button or ESC key
 	{
 	    // Update variables
 	    //----------------------------------------------------------------------------------
-		
+        int mousePositionX = (GetMouseX() - xOFFSET) / SCALE;
+        int mousePositionY = (GetMouseY() - yOFFSET) / SCALE;
+        mousePositionX %= (int)matrix.size();
+        mousePositionY %= (int)matrix[0].size();
 
-        
-        
+        paused = IsKeyDown(KEY_SPACE);
 
-	    //----------------------------------------------------------------------------------
 
-	    // Draw
-	    //----------------------------------------------------------------------------------
-	    BeginDrawing();
-	    ClearBackground(BACKGROUND_COLOR);
+        if((clk % 1000 == 0) && !paused){
+            set<Cell*> updateCells;
+            // All living cells should check their neighbors
+            for(auto cell : livingCells){
+                cell->checkNeighbors(matrix,updateCells);
+            }
+
+            // Update all cells that changed during the last cycle
+            livingCells.clear();
+            for(auto cell : updateCells){
+                if(cell->update())
+                    livingCells.insert(cell);
+            }
+        }   
+            
+
+        //----------------------------------------------------------------------------------
+
+        // Draw
+        //----------------------------------------------------------------------------------
+        BeginDrawing();
+        ClearBackground(BACKGROUND_COLOR);
         for(int w=0;w<(int)matrix.size();w++){
             for(int h=0;h<(int)matrix[w].size();h++){
                 DrawRectangle(matrix[w][h].x * SCALE,matrix[w][h].y * SCALE,SCALE,SCALE,matrix[w][h].color);
             }
         }
+
+        if(paused){
+            DrawText("Paused\n  | |",SCREENWIDTH/2,0,10,TEXT_COLOR);
+
+            if(IsMouseButtonPressed(MOUSE_LEFT_BUTTON)){
+                cout<<"Changed Cell"<<endl;
+                Cell *cell = &matrix[mousePositionX][mousePositionY];
+                if(cell->isAlive){
+                    cell->willBeAlive = false;
+                    livingCells.erase(cell);
+                }
+                else{
+                    cell->willBeAlive = true;
+                    livingCells.insert(cell);
+                }
+                cell->update();
+            }
+        }
         
-		EndDrawing();
+        // Write out mouse coordinates
+        string mousePosition = "x: " + to_string(mousePositionX) + " y: " + to_string(mousePositionY);
+        DrawText(mousePosition.c_str(),0,0,10,TEXT_COLOR);
+
+        EndDrawing();
+        WaitTime(0.01);
+        clk += 50;
 	    //----------------------------------------------------------------------------------
 	}
 
