@@ -36,7 +36,7 @@ class Cell{
             srand(seed);
             color = {(unsigned char)(rand() % 256),(unsigned char)(rand() % 256),(unsigned char)(rand() % 256),255};
         } 
-
+        
         void checkNeighbors(vector<vector<Cell>> &matrix,set<Cell*> &nextLiveCells){
             int livingCellsCount = 0;
             for(int w=x-1;w<=x+1;w++){
@@ -138,7 +138,6 @@ int main () {
 
         paused = IsKeyDown(KEY_SPACE);
 
-
         if((clk % 1000 == 0) && !paused){
             set<Cell*> updateCells;
             // All living cells should check their neighbors
@@ -168,10 +167,10 @@ int main () {
         }
 
         if(paused){
-            DrawText("Paused\n  | |",SCREENWIDTH/2,0,10,TEXT_COLOR);
+            DrawText("Paused\n     | |",SCREENWIDTH/2,0,10,TEXT_COLOR);
 
             if(IsMouseButtonPressed(MOUSE_LEFT_BUTTON)){
-                cout<<"Changed Cell"<<endl;
+                //cout<<"Changed Cell"<<endl;
                 Cell *cell = &matrix[mousePositionX][mousePositionY];
                 if(cell->isAlive){
                     cell->willBeAlive = false;
